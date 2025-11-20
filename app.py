@@ -1,17 +1,28 @@
 import streamlit as st
 import numpy as np
 import pickle
+import os
 
 # ----------------------------
-# Load Model & Scaler
+# Load Model & Scaler (Correct Filenames)
 # ----------------------------
-with open("best_model.pkl", "rb") as f:
-    model = pickle.load(f)
 
-with open("scaler.pkl", "rb") as f:
-    scaler = pickle.load(f)
+MODEL_PATH = "best_model.pkl"
+SCALER_PATH = "scaler.pkl"
 
-# ----------------------------
+# Load model safely
+if not os.path.exists(MODEL_PATH):
+    st.error(f"❌ Model file not found: {MODEL_PATH}")
+else:
+    with open(MODEL_PATH, "rb") as f:
+        model = pickle.load(f)
+
+# Load scaler safely
+if not os.path.exists(SCALER_PATH):
+    st.error(f"❌ Scaler file not found: {SCALER_PATH}")
+else:
+    with open(SCALER_PATH, "rb") as f:
+        scaler = pickle.load(f)------------------------
 # Streamlit UI Setup
 # ----------------------------
 st.set_page_config(page_title="Stress Detection", layout="centered")
