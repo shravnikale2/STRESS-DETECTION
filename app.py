@@ -4,7 +4,7 @@ import pickle
 import os
 
 # ----------------------------
-# Load Model & Scaler (Correct Filenames)
+# Load Model & Scaler
 # ----------------------------
 
 MODEL_PATH = "best_model.pkl"
@@ -22,7 +22,9 @@ if not os.path.exists(SCALER_PATH):
     st.error(f"❌ Scaler file not found: {SCALER_PATH}")
 else:
     with open(SCALER_PATH, "rb") as f:
-        scaler = pickle.load(f)------------------------
+        scaler = pickle.load(f)
+
+# ----------------------------
 # Streamlit UI Setup
 # ----------------------------
 st.set_page_config(page_title="Stress Detection", layout="centered")
@@ -34,7 +36,7 @@ to classify a sample as **Relaxed** or **Stressed**.
 """)
 
 # ----------------------------
-# Sidebar
+# Sidebar Info
 # ----------------------------
 st.sidebar.header("ℹ️ About the Model")
 st.sidebar.write("""
@@ -44,7 +46,7 @@ This classifier uses features extracted from:
 - Skin Temperature
 - Heart Rate
 
-The model used: **Best Performing Classifier**
+Final Model Used: **Gradient Boosting Classifier**
 """)
 
 # ----------------------------
