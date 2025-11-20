@@ -1,107 +1,74 @@
-import streamlit as st
+import gradio as gr
 import numpy as np
 import pickle
-import os
 
 # ----------------------------
 # Load Model & Scaler
 # ----------------------------
+with open("best_model.pkl", "rb") as f:
+    model = pickle.load(f)
 
-MODEL_PATH = "best_model.pkl"
-SCALER_PATH = "scaler.pkl"
-
-# Load model safely
-if not os.path.exists(MODEL_PATH):
-    st.error(f"❌ Model file not found: {MODEL_PATH}")
-else:
-    with open(MODEL_PATH, "rb") as f:
-        model = pickle.load(f)
-
-# Load scaler safely
-if not os.path.exists(SCALER_PATH):
-    st.error(f"❌ Scaler file not found: {SCALER_PATH}")
-else:
-    with open(SCALER_PATH, "rb") as f:
-        scaler = pickle.load(f)
+with open("scaler.pkl", "rb") as f:
+    scaler = pickle.load(f)
 
 # ----------------------------
-# Streamlit UI Setup
+# Prediction Function
 # ----------------------------
-st.set_page_config(page_title="Stress Detection", layout="centered")
-st.title("🧠 Stress Detection from Wearable Sensor Features")
+def predict_stress(ecg_mean, ecg_std, ecg_max, ecg_min,
+                   eda_mean, eda_std,
+                   temp_mean, temp_std,
+                   hr_mean, hr_std):
 
-st.write("""
-Adjust the physiological feature values using the sliders below
-to classify a sample as **Relaxed** or **Stressed**.
-""")
+    x = np.array([[ 
+        ecg_mean, ecg_std, ecg_max, ecg_min,
+        eda_mean, eda_std,
+        temp_mean, temp_std,
+        hr_mean, hr_std
+    ]])
 
-# ----------------------------
-# Sidebar Info
-# ----------------------------
-st.sidebar.header("ℹ️ About the Model")
-st.sidebar.write("""
-This classifier uses features extracted from:
-- ECG (electrocardiogram)
-- EDA (electrodermal activity)
-- Skin Temperature
-- Heart Rate
+    x_scaled = scaler.transform(x)
+    pred = model.predict(x_scaled)[0]
 
-Final Model Used: **Gradient Boosting Classifier**
-""")
-
-# ----------------------------
-# Sliders for 10 Features
-# ----------------------------
-
-st.subheader("ECG Features")
-ecg_mean = st.slider("ECG Mean", -2.0, 2.0, 0.05)
-ecg_std = st.slider("ECG Std", 0.0, 2.0, 0.1)
-ecg_max = st.slider("ECG Max", -2.0, 2.0, 0.8)
-ecg_min = st.slider("ECG Min", -2.0, 2.0, -0.8)
-
-st.subheader("EDA Features")
-eda_mean = st.slider("EDA Mean", 0.0, 10.0, 0.5)
-eda_std = st.slider("EDA Std", 0.0, 5.0, 0.2)
-
-st.subheader("Temperature Features")
-temp_mean = st.slider("Temperature Mean (°C)", 28.0, 38.0, 33.5)
-temp_std = st.slider("Temperature Std", 0.0, 1.0, 0.1)
-
-st.subheader("Heart Rate Features")
-hr_mean = st.slider("Heart Rate Mean (bpm)", 40, 160, 75)
-hr_std = st.slider("Heart Rate Std", 0.0, 20.0, 4.0)
-
-# ----------------------------
-# Prepare Input
-# ----------------------------
-input_features = np.array([[ 
-    ecg_mean, ecg_std, ecg_max, ecg_min,
-    eda_mean, eda_std,
-    temp_mean, temp_std,
-    hr_mean, hr_std
-]])
-
-scaled = scaler.transform(input_features)
-
-# ----------------------------
-# Predict
-# ----------------------------
-if st.button("🔍 Predict Stress Level"):
-    pred = model.predict(scaled)[0]
-
+    # Probability (if available)
     if hasattr(model, "predict_proba"):
-        prob = model.predict_proba(scaled)[0,1]
+        prob = float(model.predict_proba(x_scaled)[0,1])
     else:
-        prob = 0
+        prob = None
 
-    st.write("### Result:")
-    if pred == 1:
-        st.error("⚠️ **STRESSED**")
-    else:
-        st.success("🟢 **RELAXED**")
+    label = "Stressed 😟" if pred == 1 else "Relaxed 🙂"
 
-    st.write(f"### Stress Probability: **{prob*100:.2f}%**")
+    return label, f"{prob*100:.2f}%" if prob is not None else "N/A"
 
-# Footer
-st.write("---")
-st.write("Developed for AIML Mini Project — WESAD Stress Classification")
+# ----------------------------
+# Gradio UI
+# ----------------------------
+inputs = [
+    gr.Slider(-2.0, 2.0, 0.05, label="ECG Mean"),
+    gr.Slider(0.0, 2.0, 0.1, label="ECG Std"),
+    gr.Slider(-2.0, 2.0, 0.8, label="ECG Max"),
+    gr.Slider(-2.0, 2.0, -0.8, label="ECG Min"),
+
+    gr.Slider(0.0, 10.0, 0.5, label="EDA Mean"),
+    gr.Slider(0.0, 5.0, 0.2, label="EDA Std"),
+
+    gr.Slider(28.0, 38.0, 33.5, label="Temperature Mean (°C)"),
+    gr.Slider(0.0, 1.0, 0.1, label="Temperature Std"),
+
+    gr.Slider(40, 160, 75, label="Heart Rate Mean (bpm)"),
+    gr.Slider(0.0, 20.0, 4.0, label="Heart Rate Std")
+]
+
+outputs = [
+    gr.Textbox(label="Prediction"),
+    gr.Textbox(label="Stress Probability")
+]
+
+demo = gr.Interface(
+    fn=predict_stress,
+    inputs=inputs,
+    outputs=outputs,
+    title="Stress Detection",
+    description="Predict Stress vs Relaxed using physiological features.",
+)
+
+demo.launch()
